@@ -1,0 +1,56 @@
+- name: install  python3-pip
+  apt:
+    name:
+      -  python3-pip
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+#pip module doesnt work well under some circumstances
+- name: install python pika
+  shell: >
+      pip3 install pika
+  register: pip3_pika_result
+  changed_when:
+    - not "Requirement already satisfied" in pip3_pika_result.stdout
+
+- name: create app group
+  group:
+    name: "{{ app_group }}"
+    system: yes
+
+- name: create app user
+  user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    system: yes
+    shell: /bin/bash
+    home: "{{ app_home }}"
+    create_home: yes
+    comment: ampq app
+
+- name: copy consumer app
+  copy: 
+    src: "{{playbook_dir}}/consumer.py"
+    dest: "{{ app_home}}/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: 0755
+
+- name: config ampq app
+  ini_file:
+    path: "{{ app_home}}/app.cfg"
+    section: app
+    option: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items: "{{ ampq_app_config }}"
+  notify:
+    - restart ampq-consumer
+
+- name: create ampq app service
+  template:
+    src: consumer-app.unit.j2
+    dest: /etc/systemd/system/ampq-consumer.service
+  notify:
+    - start ampq-consumer
+    - restart ampq-consumer

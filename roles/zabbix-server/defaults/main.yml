@@ -1,0 +1,29 @@
+zabbix_version: "5.0"
+zabbix_user: zabbix
+zabbix_group: zabbix
+
+zabbix_postgres_username: zabbix
+zabbix_postgres_password: zabbix
+zabbix_postgres_dbname: zabbix
+zabbix_postgres_ip: "{{ ( groups['zabbix_servers'][0] == inventory_hostname ) | ternary('127.0.0.1',hostvars[groups['zabbix_servers'][0]]['ansible_eth1']['ipv4']['address']) }}"
+zabbix_postgres_port: 5432
+
+zabbix_config_options:
+  - name: DBHost
+    value: "{{ zabbix_postgres_ip }}"
+  - name: DBName
+    value: "{{zabbix_postgres_dbname}}"
+  - name: DBUser
+    value: "{{ zabbix_postgres_username }}"
+  - name: DBPassword
+    value: "{{ zabbix_postgres_password }}"
+  - name: DBPort
+    value: "{{ zabbix_postgres_port }}"
+  - name: ListenPort
+    value: 10051
+
+zabbix_pg_hba:
+  - username: "{{ zabbix_postgres_username }}"
+    database: "{{ zabbix_postgres_dbname }}"
+    address: "{{ zabbix_postgres_ip}}/32"
+    state: present

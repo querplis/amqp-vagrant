@@ -1,0 +1,7 @@
+- name: add templates to list
+  set_fact:
+    zabbix_templates: "{{ zabbix_templates + ['Template App Zabbix Server'] }}"
+
+- name: add groups to list
+  set_fact:
+    zabbix_groups: "{{ zabbix_groups + ['Zabbix servers'] }}"

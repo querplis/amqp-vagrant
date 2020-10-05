@@ -1,0 +1,10 @@
+#!/bin/bash
+
+timer=300  # trigger threshold timer
+etimer=60  # how long we want to altert to go on
+jtimer=20  # how long per message
+nodecount={{ groups['workers'] | length }}
+count=$(( (10 + (( $timer + $etimer ) * $nodecount ) / $jtimer ) ))
+for a in $(seq 1 ${count});do
+	./publisher.py $jtimer
+done

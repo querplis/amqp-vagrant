@@ -1,0 +1,66 @@
+---
+- name: install gpg
+  apt:
+    name: gpg
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: Add repo key
+  apt_key:
+    url: http://repo.zabbix.com/zabbix-official-repo.key
+    state: present
+
+- name: Add repo
+  apt_repository:
+    repo: deb http://repo.zabbix.com/zabbix/{{ zabbix_version }}/debian {{ ansible_distribution_release }} main
+    state: present
+    filename: 'zabbix'
+    update_cache: yes
+
+- name: install dependencies
+  apt:
+    name:
+      - nginx
+      - php-fpm
+      - php-pgsql
+      - zabbix-nginx-conf
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: change php fpm timezone
+  lineinfile:
+    dest: /etc/php/{{php_version}}/fpm/php.ini
+    regexp: "^;?date.timezone =.*$"
+    line: 'date.timezone = "Europe/Riga"'
+    state: present
+  notify:
+    - reload php-fpm
+  
+
+- name: configure zabbix nginx vhost
+  lineinfile:
+    dest: /etc/zabbix/nginx.conf
+    regexp: "^(#|.*?){{item.name}}.*;$"
+    line: "\t{{item.name}}\t\t{{item.value}};"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ zabbix_php_frontend_nginx_options }}"
+  notify:
+   - reload nginx
+
+- name: install zabbix php frontend
+  apt:
+    name:
+      - zabbix-frontend-php
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: configure zabbix php frontend
+  template:
+    src: zabbix.conf.php.j2
+    dest: /etc/zabbix/web/zabbix.conf.php
+
+# flush, we need zabbix api to be up before playbook ends.
+- name: Flush handlers
+  meta: flush_handlers

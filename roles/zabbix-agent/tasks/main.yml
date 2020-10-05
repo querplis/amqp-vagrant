@@ -1,0 +1,55 @@
+---
+- name: install gpg
+  apt:
+    name: gpg
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: Add repo key
+  apt_key:
+    url: http://repo.zabbix.com/zabbix-official-repo.key
+    state: present
+
+- name: Add repo
+  apt_repository:
+    repo: deb http://repo.zabbix.com/zabbix/{{ zabbix_version }}/debian {{ ansible_distribution_release }} main
+    state: present
+    filename: 'zabbix'
+    update_cache: yes
+
+# - name: add  buster-backports
+#   apt_repository:
+#     repo: deb http://deb.debian.org/debian buster-backports main contrib non-free
+#     state: present
+#     filename: buster-backports
+#     update_cache: yes
+
+- name: install zabbix-agent
+  apt:
+    name: zabbix-agent
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: configure zabbix agent
+  lineinfile:
+    dest: /etc/zabbix/zabbix_agentd.conf
+    regexp: "^{{ item.name}}=.*$"
+    line: "{{ item.name }}={{ item.value }}"
+    state: present
+  with_items: "{{ zabbix_agent_options }}"
+  notify: 
+    - restart zabbix-agent
+
+- name: define zabbix_templates
+  set_fact: 
+    zabbix_templates: "{{ zabbix_templates}}"
+
+- name: define zabbix groups
+  set_fact: 
+    zabbix_groups: "{{ zabbix_groups}}"
+
+- name: define zabbix hostmacros
+  set_fact: 
+    zabbix_hostmacros: "{{ zabbix_hostmacros }}"
+

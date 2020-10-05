@@ -1,0 +1,14 @@
+zabbix_version: "5.0"
+zabbix_groups:
+  - Linux servers
+zabbix_templates:
+  - "Template OS Linux by Zabbix agent"
+zabbix_hostmacros: []
+
+zabbix_agent_options:
+  - name: Server
+    value: "{{ ( groups['zabbix_servers'][0] == inventory_hostname ) | ternary('127.0.0.1',hostvars[groups['zabbix_servers'][0]]['ansible_eth1']['ipv4']['address']) }}"
+  - name: ServerActive
+    value: "{{ ( groups['zabbix_servers'][0] == inventory_hostname ) | ternary('127.0.0.1',hostvars[groups['zabbix_servers'][0]]['ansible_eth1']['ipv4']['address']) }}"
+  - name: Hostname
+    value: "{{ ( groups['zabbix_servers'][0] == inventory_hostname ) | ternary('Zabbix server', inventory_hostname )}}" 

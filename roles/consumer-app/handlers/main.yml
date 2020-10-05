@@ -1,0 +1,17 @@
+
+- name: start ampq-consumer
+  systemd:
+    name:  ampq-consumer
+    state: started
+    daemon-reload: yes
+    enabled: yes
+  register: ampq_consumer_started
+
+- name: restart ampq-consumer
+  systemd:
+    name: ampq-consumer
+    state: restarted
+    daemon-reload: yes
+  when:
+    - ( ampq_consumer_started.changed is not defined ) or ( ampq_consumer_started.changed is defined and not ampq_consumer_started.changed )
+

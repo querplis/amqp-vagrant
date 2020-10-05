@@ -1,0 +1,8 @@
+
+- name: add templates to list
+  set_fact:
+    zabbix_templates: "{{ zabbix_templates + ['Template App RabbitMQ node by Zabbix agent'] }}"
+
+- name: add hostmacto to the list
+  set_fact:
+    zabbix_hostmacros: "{{ zabbix_hostmacros + zabbix_hostmacro_rabbitmq }}"

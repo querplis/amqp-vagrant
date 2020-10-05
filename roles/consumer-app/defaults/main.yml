@@ -1,0 +1,10 @@
+app_group: app
+app_user: app
+app_home: /var/lib/ampq_app
+ampq_server: "{{ hostvars[groups['ampq_servers'][0]]['ansible_eth1']['ipv4']['address'] }}"
+
+ampq_app_config:
+  - name: ampq_host
+    value: "{{ ( groups['ampq_servers'][0] == inventory_hostname ) | ternary( '127.0.0.1', ampq_server ) }}"
+  - name: ampq_queuename
+    value: "{{ ampq_queuename }}"

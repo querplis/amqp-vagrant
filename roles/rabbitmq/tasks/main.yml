@@ -1,0 +1,20 @@
+---
+- name: install rabbitmq
+  apt:
+    name: rabbitmq-server
+    state: present
+
+- name: enable guest account from remote hosts
+  lineinfile:
+    path: /etc/rabbitmq/rabbitmq.conf
+    regexp: "^loopback_users.*"
+    line: loopback_users = none
+    create: yes
+    state: present
+  notify:
+    - restart rabbitmq
+
+- name: enable rabbitmq_management plugin
+  rabbitmq_plugin:
+    names: rabbitmq_management
+    state: enabled

@@ -1,0 +1,99 @@
+---
+- name: install gpg
+  apt:
+    name: gpg
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+- name: Add repo key
+  apt_key:
+    url: http://repo.zabbix.com/zabbix-official-repo.key
+    state: present
+
+- name: Add repo
+  apt_repository:
+    repo: deb http://repo.zabbix.com/zabbix/{{ zabbix_version }}/debian {{ ansible_distribution_release }} main
+    state: present
+    filename: 'zabbix'
+    update_cache: yes
+
+- name: install zabbix-server-pgsql
+  apt:
+    name: zabbix-server-pgsql
+    state: present
+    update_cache: yes
+    cache_valid_time: "{{apt_cache_valid_time | default (3600)}}"
+
+# under normal circumstances this should probably go into postgres role or separate role
+# and crdentials should not be provided here , at least not in plaintext.
+- name: create zabbix postgres user
+  become_user: postgres
+  postgresql_user:
+    name: "{{ zabbix_postgres_username }}"
+    password: "{{ zabbix_postgres_password }}"
+
+- name: create zabbix postgres db
+  become_user: postgres
+  postgresql_db:
+    name: "{{ zabbix_postgres_dbname }}"
+    owner: "{{ zabbix_postgres_username }}"
+  register: zabbix_createdb
+
+
+- name: remove local peer auth
+  lineinfile:
+    dest: /etc/postgresql/12/main/pg_hba.conf
+    regexp: "^local.*all.*all.*peer.*$"
+    state: absent
+
+
+- name: add zabbx to pg_hba.conf
+  lineinfile:
+    dest: /etc/postgresql/12/main/pg_hba.conf
+    regexp: "^#?host.*{{item.database}}.*{{item.username}}.*{{item.address}}.*md5.*$"
+    line: "host\t{{item.database}}\t\t{{item.username}}\t\t{{ item.address }}\t\tmd5"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ zabbix_pg_hba }}"
+  notify:
+    - reload postgres
+
+- name: Flush handlers
+  meta: flush_handlers
+
+- name: "get zabbix home directory"
+  shell: >
+    getent passwd {{ zabbix_user  }} | cut -d: -f6
+  changed_when: false
+  register: zabbix_user_home
+  check_mode: no
+
+
+- name: create zabbix homedir if it does not exist
+  file:
+    path: "{{ zabbix_user_home.stdout }}"
+    state: directory
+    owner: "{{ zabbix_user }}"
+    group: "{{ zabbix_group}}"
+    mode: 0755
+
+- name: "write .pgpass"
+  become_user: "{{ zabbix_user }}"
+  template:
+    src: pgpass.j2
+    dest: "{{ zabbix_user_home.stdout }}/.pgpass"
+    mode: 0600
+
+- name: initialize zabbix db
+  become_user: "{{ zabbix_user }}"
+  shell: >
+    zcat /usr/share/doc/zabbix-server-pgsql/create.sql.gz | psql -h {{ zabbix_postgres_ip }} -U {{zabbix_postgres_username}} {{ zabbix_postgres_dbname}}
+  when: zabbix_createdb.changed
+
+- name: configure zabbix server
+  lineinfile:
+    dest: /etc/zabbix/zabbix_server.conf
+    regexp: "^{{ item.name }}.*$"
+    line: "{{ item.name }}={{ item.value}}"
+    state: present
+  with_items: "{{ zabbix_config_options }}"
+  notify: restart zabbix-server

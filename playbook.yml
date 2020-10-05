@@ -1,0 +1,72 @@
+- name: Gather facts for all hosts
+  hosts: all:!controller
+  serial: '{{ serial|default("0") }}'
+  gather_facts: false
+  tasks:
+    - setup:
+  tags: always
+
+
+# we need this first, so we got all the variables for templates defined
+# another option would be to define them as group vars
+- name: install zabbix-agent
+  hosts: all:!controller
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: zabbix-agent }
+
+# zabbix server with postgres backend
+- name: install zabbix server
+  hosts: zabbix_servers
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: postgresql }
+    - { role: zabbix-server }
+    - { role: zabbix-frontend-php }
+    - { role: zabbix-template.zabbix-server }
+
+# rabbitmq anpq server 
+- name: install ampq server
+  hosts: ampq_servers
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: rabbitmq }
+    - { role: zabbix-template.rabbitmq}
+
+# app for pushing and clogging messages 
+- name: install publisher app
+  hosts: ampq_servers
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: publisher-app }
+
+# app for consuming messages
+- name: install workers
+  hosts: workers
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: consumer-app }
+
+# zabbix host goes last so we have all the templates/groups/hostmacros defined 
+- name: update zabbix
+  hosts: all:!controller
+  become: yes
+  gather_facts: false
+  roles:
+    - { role: zabbix-host }
+
+- name: clog
+  hosts: central
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: clog
+      become_user: app
+      shell: ./clog.sh
+      args:
+        chdir: /var/lib/ampq_app

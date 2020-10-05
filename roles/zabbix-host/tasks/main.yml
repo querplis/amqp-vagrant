@@ -1,0 +1,48 @@
+
+# we dont have valid fqdns, we have to generate some hosts file so http requests work
+- name: "Build hosts file"
+  local_action: 
+    module: lineinfile
+    dest: /etc/hosts 
+    regexp: '.*{{ item }}$' 
+    line: "{{ hostvars[item].ansible_eth1.ipv4.address }} {{item}}" 
+    state: present
+  when: hostvars[item].ansible_eth1.ipv4.address is defined
+  with_inventory_hostnames:
+    - all:!controller
+  run_once: True
+
+- name: Create a new host or update an existing host's info
+  become: no
+  throttle: 1
+  local_action:
+    module: zabbix_host
+    server_url: "http://{{ groups['zabbix_servers'][0] }}"
+    login_user: "{{ zabbix_login_username }}"
+    login_password: "{{ zabbix_login_password }}"
+    host_name: "{{ ( inventory_hostname == groups['zabbix_servers'][0] ) | ternary('Zabbix server', inventory_hostname)}}"
+    visible_name: "{{ inventory_hostname }}"
+    host_groups: "{{ zabbix_groups }}"
+    link_templates: "{{ zabbix_templates }}"
+    status: enabled
+    state: present
+    interfaces:
+      - type: agent
+        main: 1
+        useip: 1
+        ip: "{{ ( inventory_hostname == groups['zabbix_servers'][0] ) | ternary('127.0.0.1', ansible_eth1.ipv4.address) }}"
+        dns: ""
+        port: "10050"
+
+- name: Create a new host macro or update an existing macro's value
+  throttle: 1
+  local_action:
+    module: zabbix_hostmacro
+    server_url: "http://{{ groups['zabbix_servers'][0] }}"
+    login_user: "{{ zabbix_login_username }}"
+    login_password: "{{ zabbix_login_password }}"
+    host_name: "{{ ( inventory_hostname == groups['zabbix_servers'][0] ) | ternary('Zabbix server', inventory_hostname)}}"
+    macro_name: "{{ item.name }}"
+    macro_value: "{{ item.value }}"
+    state: present
+  with_items: "{{ zabbix_hostmacros }}"

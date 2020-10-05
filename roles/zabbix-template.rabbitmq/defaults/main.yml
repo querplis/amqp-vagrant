@@ -1,0 +1,7 @@
+zabbix_hostmacro_rabbitmq:
+  - name: "RABBITMQ.API.PASSWORD"
+    value: guest
+  - name: "RABBITMQ.API.USER"
+    value: guest
+  - name: RABBITMQ.MESSAGES.MAX.WARN
+    value: 10

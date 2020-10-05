@@ -1,0 +1,10 @@
+zabbix_version: "5.0"
+php_version: 7.3
+
+zabbix_postgres_ip: "{{ ( groups['zabbix_servers'][0] == inventory_hostname ) | ternary('127.0.0.1',hostvars[groups['zabbix_servers'][0]]['ansible_eth1']['ipv4']['address']) }}"
+
+zabbix_php_frontend_nginx_options:
+  - name: listen
+    value: 80
+  - name: server_name
+    value: "127.0.0.1 localhost {{groups['zabbix_servers'][0]}}"
